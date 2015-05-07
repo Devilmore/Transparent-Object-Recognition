@@ -71,7 +71,7 @@ for file, attr in dirtree(images) do
 		filename = string.gsub(filename,"[".."1234567890".."]",'') 				-- remove numbers, reducing the filename to the label
 		print("Loading file: " .. file .. ", will be tagged as \"" .. filename .. "\".")
 		-- classes: GLOBAL var!
-		classes = {'cocktailglass','colaglass','shot','waterglass','wineglass','whitebeerglass','testcase' }
+		classes = {'cocktailglass','colaglass','shot','waterglass','wineglass','whitebeerglass' }
 		if(string.find(filename , "cocktailglass"))then j = 1 
 		end
 		if(string.find(filename , "colaglass"))then j = 2 
@@ -85,8 +85,8 @@ for file, attr in dirtree(images) do
 		if(string.find(filename , "whitebeerglass"))then j = 6 
 		end
 		--image.rgb2yuv(imagesAll[i],image.load(file)) 
-	        --itorch.image(imagesAll[i])
-	        imagesAll[i] = image.load(file)
+        --itorch.image(imagesAll[i])
+        imagesAll[i] = image.load(file)
 		labelsAll[i] = j --filename
 		i = i + 1 		
 	end
