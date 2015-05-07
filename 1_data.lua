@@ -73,22 +73,16 @@ for file, attr in dirtree(images) do
 		-- classes: GLOBAL var!
 		classes = {'cocktailglass','colaglass','shot','waterglass','wineglass','whitebeerglass','testcase' }
 		if(string.find(filename , "cocktailglass"))then j = 1 
-		print("1")
 		end
 		if(string.find(filename , "colaglass"))then j = 2 
-		print("2")
 		end
 		if(string.find(filename , "shot"))then j = 3
-		print("3")		
 		end
 		if(string.find(filename , "waterglass"))then j = 4
-		print("4")		
 		end
 		if(string.find(filename , "wineglass"))then j = 5 
-		print("5")		
 		end
 		if(string.find(filename , "whitebeerglass"))then j = 6 
-		print("6")		
 		end
 		--image.rgb2yuv(imagesAll[i],image.load(file)) 
 	        --itorch.image(imagesAll[i])
