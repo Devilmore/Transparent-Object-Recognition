@@ -123,8 +123,8 @@ end
 
 print '==> preprocessing data'
 
-trainData.data = trainData.data:float()
-testData.data = testData.data:float()
+trainData.data = trainData.data:double()
+testData.data = testData.data:double()
 
 -- Convert all images to YUV
 print '==> preprocessing data: colorspace RGB -> YUV'

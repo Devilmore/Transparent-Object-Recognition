@@ -119,7 +119,7 @@ function train()
    model:training()
 
    -- shuffle at each epoch
-   shuffle = torch.randperm(trsize)
+   shuffle = torch.randperm(trainData:size())
 
    -- do one epoch
    print('==> doing epoch on training data:')
@@ -135,7 +135,7 @@ function train()
          -- load new sample
          local input = trainData.data[shuffle[i]]
          local target = trainData.labels[shuffle[i]]
-         if opt.type == 'double' then input = input:double()
+         if opt.type == 'float' then input = input:float()
          elseif opt.type == 'cuda' then input = input:cuda() end
          table.insert(inputs, input)
          table.insert(targets, target)
