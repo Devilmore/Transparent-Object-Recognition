@@ -49,7 +49,7 @@ print(sys.COLORS.red ..  '==> loading dataset')
 
 size = 0
 
-for file, attr in dirtree("/home/andreas/ownCloud/Master Arbeit/images/Small") do
+for file, attr in dirtree(images) do
 	if (attr.mode == "file") then
 		size = size+1
 	end
