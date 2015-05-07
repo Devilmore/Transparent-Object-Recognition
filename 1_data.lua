@@ -85,8 +85,8 @@ for file, attr in dirtree(images) do
 		if(string.find(filename , "whitebeerglass"))then j = 6 
 		end
 		--image.rgb2yuv(imagesAll[i],image.load(file)) 
-        --itorch.image(imagesAll[i])
-        imagesAll[i] = image.load(file)
+		--itorch.image(imagesAll[i])
+		imagesAll[i] = image.load(file)
 		labelsAll[i] = j --filename
 		i = i + 1 		
 	end
