@@ -3,6 +3,7 @@ require 'image'
 require 'nn'     
 require 'nnx'      -- provides a normalization operator
 require 'lfs'
+require 'json'
 
 if not opt then
    print '==> processing options'
@@ -45,15 +46,17 @@ function file_exists(name)
 end
 
 -- define classes glbally
-classes = {'cocktailglass','colaglass','shot','waterglass','wineglass','whitebeerglass'}
+classes = {}
+classes_tmp = {}
 
 print(sys.COLORS.red ..  '==> loading dataset')
 
 local trainFile = '../images/tensors/train.t7'
 local testFile = '../images/tensors/test.t7'
+local labelsFile = '../images/tensors/labels.txt'
 
 -- Load tensors if they exist
-if (file_exists(trainFile) and file_exists(testFile)) then
+if (file_exists(trainFile) and file_exists(testFile) and file_exists(labelsFile)) then
 	-- copy train tensor
 	loaded = torch.load(trainFile,'binary')
 	trsize = loaded.data:size()[1]
@@ -70,24 +73,43 @@ if (file_exists(trainFile) and file_exists(testFile)) then
 		labels = loaded.labels,
 		size = function() return tesize end
 		}
+	--- load label data from labels file
+	f = io.open(labelsFile) 
+	classes = json.decode(f:read("*all")) 
+	f:close() 
 -- or create new ones if none (or only one) exist
 else
 	-- path to images
 	images = '../images/Small'
 	
-	-- determine the tensor size from the number of images
+	-- determine the tensor size from the number of images and add all filenames to the classes list
 	size = 0
 	for file, attr in dirtree(images) do
 		if (attr.mode == "file") then
 			size = size+1
+			filename = string.format("%s {%s} %s",string.match(file, "(.-)([^/]-([^%.]+))$"))
+			string.gsub(filename,"{(.-)}",function(a) filename = a end)				
+			filename = string.gsub(filename,".png", "")
+			filename = string.gsub(filename,"[".."1234567890".."]",'')
+			table.insert(classes_tmp, filename)
 		end
 	end
 
+	-- delete duplicate entries in classes list
+	local hash = {}
+	for _,v in ipairs(classes_tmp) do
+		if (not hash[v]) then
+			classes[#classes+1] = v
+		hash[v] = true
+		end
+	end
+
+	-- set up variables for image reading loop
 	local imagesAll = torch.Tensor(size,3,32,32)
 	local labelsAll = torch.Tensor(size)
 
-	i = 1
-	j = 1
+	local i = 1
+	local j = 1
 
  	-- add images and labels to the dataset
 	for file, attr in dirtree(images) do
@@ -96,20 +118,12 @@ else
 			filename = string.format("%s {%s} %s",string.match(file, "(.-)([^/]-([^%.]+))$")) 	-- split path into path,filename,extension and mark filename
 			string.gsub(filename,"{(.-)}",function(a) filename = a end)				-- take only the filename
 			filename = string.gsub(filename,".png", "") 						-- remove extension
-			--print("IMPORTANT SHIT: " .. filename .. " BLA")
 			filename = string.gsub(filename,"[".."1234567890".."]",'') 				-- remove numbers, reducing the filename to the label
 			print("Loading file: " .. file .. ", will be tagged as \"" .. filename .. "\".")
-			if(string.find(filename , "cocktailglass"))then j = 1 
-			end
-			if(string.find(filename , "colaglass"))then j = 2 
-			end
-			if(string.find(filename , "shot"))then j = 3
-			end
-			if(string.find(filename , "waterglass"))then j = 4
-			end
-			if(string.find(filename , "wineglass"))then j = 5 
-			end
-			if(string.find(filename , "whitebeerglass"))then j = 6 
+			for i=1,table.getn(classes) do
+				if (string.find(filename, classes[i])) then
+					j = i
+				end
 			end
 			imagesAll[i] = image.load(file)
 			labelsAll[i] = j --filename
@@ -146,10 +160,13 @@ else
 	   testData.labels[i-trsize] = labelsAll[labelsShuffle[i]]
 	end
 
-	-- save the created tensors
+	-- save the created tensors. Classes are written to a labels file for easier use
 	print("==> saving tensors in train.t7 with size " .. trsize .. " and test.t7 with size " .. tesize)
 	torch.save("../images/tensors/train.t7", trainData, 'binary')
 	torch.save("../images/tensors/test.t7", testData, 'binary')
+	f = io.open("../images/tensors/labels.txt", "w") 
+	f:write(json.encode(classes)) 
+	f:close() 
 end
 
 print '==> preprocessing data'
