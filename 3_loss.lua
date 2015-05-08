@@ -28,8 +28,8 @@ if not opt then
    model = nn.Sequential()
 end
 
--- 10-class problem
-noutputs = 10
+-- class problem
+noutputs = table.getn(classes)
 
 ----------------------------------------------------------------------
 print '==> define loss'

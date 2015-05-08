@@ -35,8 +35,8 @@ end
 ----------------------------------------------------------------------
 print '==> define parameters'
 
--- 10-class problem
-noutputs = 10
+-- n-class problem
+noutputs = table.getn(classes)
 
 -- input dimensions
 nfeats = 3
