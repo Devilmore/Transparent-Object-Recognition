@@ -17,7 +17,7 @@ if not opt then
    opt = cmd:parse(arg or {})
 end
 
-images = '../images/Small'
+-- Define functions we need because lua sucks
 
 function dirtree(dir)
   assert(dir and dir ~= "", "directory parameter is missing or empty")
@@ -27,7 +27,7 @@ function dirtree(dir)
   local function yieldtree(dir)
     for entry in lfs.dir(dir) do
       if entry ~= "." and entry ~= ".." then
-        entry=dir.."/"..entry
+	entry=dir.."/"..entry
 	local attr=lfs.attributes(entry)
 	coroutine.yield(entry,attr)
 	if attr.mode == "directory" then
@@ -39,86 +39,117 @@ function dirtree(dir)
   return coroutine.wrap(function() yieldtree(dir) end)
 end
 
-local opt = opt or {
-   visualize = true,
-   size = 'small',
-   patches='all'
-}
+function file_exists(name)
+   local f=io.open(name,"r")
+   if f~=nil then io.close(f) return true else return false end
+end
+
+-- define classes glbally
+classes = {'cocktailglass','colaglass','shot','waterglass','wineglass','whitebeerglass'}
 
 print(sys.COLORS.red ..  '==> loading dataset')
 
-size = 0
+local trainFile = '../images/tensors/train.t7'
+local testFile = '../images/tensors/test.t7'
 
-for file, attr in dirtree(images) do
-	if (attr.mode == "file") then
-		size = size+1
+-- Load tensors if they exist
+if (file_exists(trainFile) and file_exists(testFile)) then
+	-- copy train tensor
+	loaded = torch.load(trainFile,'binary')
+	trsize = loaded.data:size()[1]
+	trainData = {
+		data = loaded.data,
+		labels = loaded.labels,
+		size = function() return trsize end
+		}
+	-- copy test tensor
+	loaded = torch.load(testFile,'binary')
+	tesize = loaded.data:size()[1]
+	testData = {
+		data = loaded.data,
+		labels = loaded.labels,
+		size = function() return tesize end
+		}
+-- or create new ones if none (or only one) exist
+else
+	-- path to images
+	images = '../images/Small'
+	
+	-- determine the tensor size from the number of images
+	size = 0
+	for file, attr in dirtree(images) do
+		if (attr.mode == "file") then
+			size = size+1
+		end
 	end
-end
 
-local imagesAll = torch.Tensor(size,3,32,32)
-local labelsAll = torch.Tensor(size)
+	local imagesAll = torch.Tensor(size,3,32,32)
+	local labelsAll = torch.Tensor(size)
 
-i = 1
-j = 1
-		-- classes: GLOBAL var!
-classes = {'cocktailglass','colaglass','shot','waterglass','wineglass','whitebeerglass'}
+	i = 1
+	j = 1
+
  	-- add images and labels to the dataset
-for file, attr in dirtree(images) do
-	if (attr.mode ~= "file") then
-	else
-		filename = string.format("%s {%s} %s",string.match(file, "(.-)([^/]-([^%.]+))$")) 	-- split path into path,filename,extension and mark filename
-		string.gsub(filename,"{(.-)}",function(a) filename = a end)				-- take only the filename
-		filename = string.gsub(filename,".png", "") 						-- remove extension
-		--print("IMPORTANT SHIT: " .. filename .. " BLA")
-		filename = string.gsub(filename,"[".."1234567890".."]",'') 				-- remove numbers, reducing the filename to the label
-		print("Loading file: " .. file .. ", will be tagged as \"" .. filename .. "\".")
-		if(string.find(filename , "cocktailglass"))then j = 1 
+	for file, attr in dirtree(images) do
+		if (attr.mode ~= "file") then
+		else
+			filename = string.format("%s {%s} %s",string.match(file, "(.-)([^/]-([^%.]+))$")) 	-- split path into path,filename,extension and mark filename
+			string.gsub(filename,"{(.-)}",function(a) filename = a end)				-- take only the filename
+			filename = string.gsub(filename,".png", "") 						-- remove extension
+			--print("IMPORTANT SHIT: " .. filename .. " BLA")
+			filename = string.gsub(filename,"[".."1234567890".."]",'') 				-- remove numbers, reducing the filename to the label
+			print("Loading file: " .. file .. ", will be tagged as \"" .. filename .. "\".")
+			if(string.find(filename , "cocktailglass"))then j = 1 
+			end
+			if(string.find(filename , "colaglass"))then j = 2 
+			end
+			if(string.find(filename , "shot"))then j = 3
+			end
+			if(string.find(filename , "waterglass"))then j = 4
+			end
+			if(string.find(filename , "wineglass"))then j = 5 
+			end
+			if(string.find(filename , "whitebeerglass"))then j = 6 
+			end
+			imagesAll[i] = image.load(file)
+			labelsAll[i] = j --filename
+			i = i + 1 		
 		end
-		if(string.find(filename , "colaglass"))then j = 2 
-		end
-		if(string.find(filename , "shot"))then j = 3
-		end
-		if(string.find(filename , "waterglass"))then j = 4
-		end
-		if(string.find(filename , "wineglass"))then j = 5 
-		end
-		if(string.find(filename , "whitebeerglass"))then j = 6 
-		end
-		--image.rgb2yuv(imagesAll[i],image.load(file)) 
-		--itorch.image(imagesAll[i])
-		imagesAll[i] = image.load(file)
-		labelsAll[i] = j --filename
-		i = i + 1 		
 	end
-end
 
--- shuffle dataset: get shuffled indices in this variable:    Why?
-local labelsShuffle = torch.randperm((#labelsAll)[1])
+	-- shuffle dataset: get shuffled indices in this variable:    Why?
+	local labelsShuffle = torch.randperm((#labelsAll)[1])
 
-local portionTrain = 0.8 -- 80% is train data, rest is test data
-local trsize = torch.floor(labelsShuffle:size(1)*portionTrain)
-local tesize = labelsShuffle:size(1) - trsize
+	local portionTrain = 0.8 -- 80% is train data, rest is test data
+	trsize = torch.floor(labelsShuffle:size(1)*portionTrain)
+	tesize = labelsShuffle:size(1) - trsize
 
--- create train set:
-trainData = {
-   data = torch.Tensor(trsize, 3, 32, 32),
-   labels = torch.Tensor(trsize),
-   size = function() return trsize end
-}
---create test set:
-testData = {
-      data = torch.Tensor(tesize, 3, 32, 32),
-      labels = torch.Tensor(tesize),
-      size = function() return tesize end
-   }
+	-- create train set:
+	trainData = {
+	   data = torch.Tensor(trsize, 3, 32, 32),
+	   labels = torch.Tensor(trsize),
+	   size = function() return trsize end
+	}
+	--create test set:
+	testData = {
+	      data = torch.Tensor(tesize, 3, 32, 32),
+	      labels = torch.Tensor(tesize),
+	      size = function() return tesize end
+	   }
 
-for i=1,trsize do
-   trainData.data[i] = imagesAll[labelsShuffle[i]]:clone()
-   trainData.labels[i] = labelsAll[labelsShuffle[i]]
-end
-for i=trsize+1,tesize+trsize do
-   testData.data[i-trsize] = imagesAll[labelsShuffle[i]]:clone()
-   testData.labels[i-trsize] = labelsAll[labelsShuffle[i]]
+	for i=1,trsize do
+	   trainData.data[i] = imagesAll[labelsShuffle[i]]:clone()
+	   trainData.labels[i] = labelsAll[labelsShuffle[i]]
+	end
+	for i=trsize+1,tesize+trsize do
+	   testData.data[i-trsize] = imagesAll[labelsShuffle[i]]:clone()
+	   testData.labels[i-trsize] = labelsAll[labelsShuffle[i]]
+	end
+
+	-- save the created tensors
+	print("==> saving tensors in train.t7 with size " .. trsize .. " and test.t7 with size " .. tesize)
+	torch.save("../images/tensors/train.t7", trainData, 'binary')
+	torch.save("../images/tensors/test.t7", testData, 'binary')
 end
 
 print '==> preprocessing data'
@@ -131,9 +162,93 @@ print '==> preprocessing data: colorspace RGB -> YUV'
 
 for i=1,trsize do
     image.rgb2yuv(trainData.data[i],trainData.data[i])
---    itorch.image(trainData.data[i])
 end
 for i=1,tesize do
     image.rgb2yuv(testData.data[i],testData.data[i])
---    itorch.image(trainData.data[i])
 end
+
+-- Additional pre-processing which may or may not be useful and visualization which probably wont work.
+-- Use itorch instead.
+
+---- Name channels for convenience
+--channels = {'y','u','v'}
+
+---- Normalize each channel, and store mean/std
+---- per channel. These values are important, as they are part of
+---- the trainable parameters. At test time, test data will be normalized
+---- using these values.
+--print '==> preprocessing data: normalize each feature (channel) globally'
+--mean = {}
+--std = {}
+--for i,channel in ipairs(channels) do
+--   -- normalize each channel globally:
+--   mean[i] = trainData.data[{ {},i,{},{} }]:mean()
+--   std[i] = trainData.data[{ {},i,{},{} }]:std()
+--   trainData.data[{ {},i,{},{} }]:add(-mean[i])
+--   trainData.data[{ {},i,{},{} }]:div(std[i])
+--end
+
+---- Normalize test data, using the training means/stds
+--for i,channel in ipairs(channels) do
+--   -- normalize each channel globally:
+--   testData.data[{ {},i,{},{} }]:add(-mean[i])
+--   testData.data[{ {},i,{},{} }]:div(std[i])
+--end
+
+---- Local normalization
+--print '==> preprocessing data: normalize all three channels locally'
+
+---- Define the normalization neighborhood:
+--neighborhood = image.gaussian1D(13)
+
+---- Define our local normalization operator (It is an actual nn module, 
+---- which could be inserted into a trainable model):
+--normalization = nn.SpatialContrastiveNormalization(1, neighborhood, 1):float()
+
+---- Normalize all channels locally:
+--for c in ipairs(channels) do
+--   for i = 1,trainData:size() do
+--      trainData.data[{ i,{c},{},{} }] = normalization:forward(trainData.data[{ i,{c},{},{} }])
+--   end
+--   for i = 1,testData:size() do
+--      testData.data[{ i,{c},{},{} }] = normalization:forward(testData.data[{ i,{c},{},{} }])
+--   end
+--end
+
+------------------------------------------------------------------------
+--print '==> verify statistics'
+
+---- It's always good practice to verify that data is properly
+---- normalized.
+
+--for i,channel in ipairs(channels) do
+--   trainMean = trainData.data[{ {},i }]:mean()
+--   trainStd = trainData.data[{ {},i }]:std()
+
+--   testMean = testData.data[{ {},i }]:mean()
+--   testStd = testData.data[{ {},i }]:std()
+
+--   print('training data, '..channel..'-channel, mean: ' .. trainMean)
+--   print('training data, '..channel..'-channel, standard deviation: ' .. trainStd)
+
+--   print('test data, '..channel..'-channel, mean: ' .. testMean)
+--   print('test data, '..channel..'-channel, standard deviation: ' .. testStd)
+--end
+
+------------------------------------------------------------------------
+----print '==> visualizing data'
+
+---- Visualization is quite easy, using itorch.image().
+
+----if opt.visualize then
+----   if itorch then
+----   first256Samples_y = trainData.data[{ {1,256},1 }]
+----   first256Samples_u = trainData.data[{ {1,256},2 }]
+----   first256Samples_v = trainData.data[{ {1,256},3 }]
+----   itorch.image(first256Samples_y)
+----   itorch.image(first256Samples_u)
+----   itorch.image(first256Samples_v)
+----   else
+----      print("For visualization, run this script in an itorch notebook")
+----   end
+----end
