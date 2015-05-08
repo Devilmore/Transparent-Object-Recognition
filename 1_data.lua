@@ -60,6 +60,8 @@ local labelsAll = torch.Tensor(size)
 
 i = 1
 j = 1
+		-- classes: GLOBAL var!
+classes = {'cocktailglass','colaglass','shot','waterglass','wineglass','whitebeerglass'}
  	-- add images and labels to the dataset
 for file, attr in dirtree(images) do
 	if (attr.mode ~= "file") then
@@ -70,8 +72,6 @@ for file, attr in dirtree(images) do
 		--print("IMPORTANT SHIT: " .. filename .. " BLA")
 		filename = string.gsub(filename,"[".."1234567890".."]",'') 				-- remove numbers, reducing the filename to the label
 		print("Loading file: " .. file .. ", will be tagged as \"" .. filename .. "\".")
-		-- classes: GLOBAL var!
-		classes = {'cocktailglass','colaglass','shot','waterglass','wineglass','whitebeerglass'}
 		if(string.find(filename , "cocktailglass"))then j = 1 
 		end
 		if(string.find(filename , "colaglass"))then j = 2 
